@@ -69,13 +69,6 @@ def init():
         progress_bar.progress(30)
         time.sleep(1)
 
-        #Setting up Structured Chat Agent for google search API
-        st.session_state.agent = create_structured_chat_agent(
-                st.session_state.openai_llm, #LLM to use as the agent
-                [st.session_state.search_tool], #Tools to use in the agent
-                hub.pull("hwchase17/react")
-        )
-
         # Assuming agent and tool are initialized correctly
         st.session_state.agent_executor = AgentExecutor(
                 agent=st.session_state.agent,
