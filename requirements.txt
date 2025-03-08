@@ -17,6 +17,7 @@ langchain-core
 langchain_openai
 langchain-text-splitters
 streamlit-modal
+langchain-community
 pgvector
 pluggy
 agentmemory
