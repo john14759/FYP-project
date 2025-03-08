@@ -3,10 +3,8 @@ import os
 import random
 import string
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings 
-from langchain_community.vectorstores import FAISS
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain_core.tools import Tool 
-from langchain_google_community import GoogleSearchAPIWrapper 
 from langchain.agents import create_structured_chat_agent 
 from langchain import hub 
 from langchain.agents import AgentExecutor 
@@ -70,14 +68,6 @@ def init():
                     azure_deployment=os.environ['TEXT_EMBEDDING_DEPLOYMENT_NAME'])
         progress_bar.progress(30)
         time.sleep(1)
-
-
-        #Setting up Google Search API functionality
-        st.session_state.search_tool = Tool(
-                name="google_search",
-                description="Search Google for most recent and relevant results.",
-                func=GoogleSearchAPIWrapper().run,
-        )
 
         #Setting up Structured Chat Agent for google search API
         st.session_state.agent = create_structured_chat_agent(

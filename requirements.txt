@@ -3,7 +3,6 @@ streamlit-lottie
 matplotlib
 python-dotenv
 pymongo
-notebook
 pandas
 openai
 azure-core
@@ -11,18 +10,11 @@ azure-identity
 azure-search-documents
 pypdf
 docx2txt
-faiss-cpu
 streamlit
 streamlit-chat
 langchain
-langchain-community
-langchain-experimental
 langchain-core
 langchain_openai
-langchain-huggingface
-huggingface-hub
-google-search-results
-langchain_google_community
 langchain-text-splitters
 streamlit-modal
 pgvector
