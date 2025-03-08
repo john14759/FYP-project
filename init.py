@@ -4,8 +4,6 @@ import random
 import string
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
-from langchain_core.tools import Tool 
-from langchain.agents import create_structured_chat_agent 
 from langchain import hub 
 from langchain.agents import AgentExecutor 
 from pymongo import MongoClient 
