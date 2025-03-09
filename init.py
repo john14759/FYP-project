@@ -67,15 +67,6 @@ def init():
         progress_bar.progress(30)
         time.sleep(1)
 
-        # Assuming agent and tool are initialized correctly
-        st.session_state.agent_executor = AgentExecutor(
-                agent=st.session_state.agent,
-                tools=[st.session_state.search_tool],
-                verbose=True,
-                handle_parsing_errors=True,
-                max_iterations=5,
-        )
-
         #Setting up AI Azure Search
         progress_text.write("Setting up context indexes from Azure AI search...")
         st.session_state.courseinfo_search = SearchClient(
