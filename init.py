@@ -4,8 +4,6 @@ import random
 import string
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
-from langchain import hub 
-from langchain.agents import AgentExecutor 
 from pymongo import MongoClient 
 from azure.core.credentials import AzureKeyCredential 
 from azure.search.documents import SearchClient
@@ -13,8 +11,8 @@ from agentmemory import (
     get_memories
 )
 from streamlit_lottie import st_lottie
-import requests
 import time
+import json
 
 def init():
 
@@ -24,7 +22,7 @@ def init():
     with placeholder.container():
         col1, col2, col3 = st.columns([0.3, 2.7, 1.5])
         with col1:
-            lottie_loading = load_lottilefile("https://lottie.host/c18a7e2c-0522-486d-8e37-b34f2fdabcf4/lkbEWMy7ej.json")
+            lottie_loading = load_lottilefile("image_assets/loading.json")
             st_lottie(
             lottie_loading,
             speed=1,
@@ -118,6 +116,7 @@ def init():
             st.session_state.cached_human_memories = get_memories(category='human', sort_order="desc")
         if 'cached_ai_memories' not in st.session_state:
             st.session_state.cached_ai_memories = get_memories(category='ai', sort_order="desc")
+        progress_bar.progress(80)
         if 'username' not in st.session_state:
             st.session_state.username = None
         if 'chatbot_context' not in st.session_state:
@@ -127,7 +126,6 @@ def init():
             st.session_state.chatbot_context = (existing_context := context_collection.find_one({}, {"_id": 0, "context": 1})) and existing_context.get("context", "")
 
         progress_bar.progress(90)
-        time.sleep(1)
 
     # Clear the placeholder once setup is complete
     placeholder.empty()
@@ -140,8 +138,6 @@ def generate_random_code(length=8):
     random_code = ''.join(random.choice(characters) for _ in range(length))
     return random_code
 
-def load_lottilefile(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
+def load_lottilefile(filepath):
+    with open(filepath, "r") as f:
+        return json.load(f)

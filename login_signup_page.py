@@ -12,8 +12,6 @@ chatbot_db = st.session_state.sql_client['chatbot']  # Use the chatbot database
 users_collection = chatbot_db['users'] 
 
 # Session state management
-if "username" not in st.session_state:
-    st.session_state.username = None
 if "auth_page" not in st.session_state:
     st.session_state.auth_page = "landing"  # New state variable for tracking authentication pages
 
@@ -32,70 +30,72 @@ def validate_email(email):
 def signup_page():
     st.title("Create New Account")
     
-    with st.form("signup_form"):
-        email = st.text_input("Email")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
-        
-        if st.form_submit_button("Sign Up"):
-            if not validate_email(email):
-                st.error("Please enter a valid email address")
-                return
-                
-            if users_collection.find_one({"$or": [{"email": email}, {"username": username}]}):
-                st.error("Username or email already exists")
-                return
-                
-            if password != confirm_password:
-                st.error("Passwords do not match")
-                return
-                
-            hashed_pw = hash_password(password)
-            user_data = {
-                "email": email,
-                "username": username,
-                "password": hashed_pw
-            }
+    if not st.session_state.authenticated:
+        with st.form("signup_form"):
+            email = st.text_input("Email")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
             
-            try:
-                users_collection.insert_one(user_data)
-                st.success("Account created successfully! Please login.")
-                st.session_state.auth_page = "login"
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error creating account: {str(e)}")
+            if st.form_submit_button("Sign Up"):
+                if not validate_email(email):
+                    st.error("Please enter a valid email address")
+                    return
+                    
+                if users_collection.find_one({"$or": [{"email": email}, {"username": username}]}):
+                    st.error("Username or email already exists")
+                    return
+                    
+                if password != confirm_password:
+                    st.error("Passwords do not match")
+                    return
+                    
+                hashed_pw = hash_password(password)
+                user_data = {
+                    "email": email,
+                    "username": username,
+                    "password": hashed_pw
+                }
+                
+                try:
+                    users_collection.insert_one(user_data)
+                    st.success("Account created successfully! Please login.")
+                    st.session_state.auth_page = "login"
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error creating account: {str(e)}")
 
-    # Add back button outside the form
-    if st.button("← Back to Landing Page", use_container_width=True):
-        st.session_state.auth_page = "landing"
-        st.rerun()
+        # Add back button outside the form
+        if st.button("← Back to Landing Page", use_container_width=True):
+            st.session_state.auth_page = "landing"
+            st.rerun()
 
 def login_page():
     st.title("Login to Your Account")
     
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        
-        if st.form_submit_button("Login"):
-            user = users_collection.find_one({"username": username})
+    if not st.session_state.authenticated:
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
             
-            if not user:
-                st.error("Username not found")
-                return
+            if st.form_submit_button("Login"):
+                user = users_collection.find_one({"username": username})
                 
-            if verify_password(user["password"], password):
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                st.rerun()
-            else:
-                st.error("Incorrect password")
+                if not user:
+                    st.error("Username not found")
+                    return
+                    
+                if verify_password(user["password"], password):
+                    st.session_state.authenticated = True
+                    st.session_state.username = username
+                    st.rerun()
+                else:
+                    st.error("Incorrect password")
 
-    # Add back button outside the form
-    if st.button("← Back to Landing Page", use_container_width=True):
-        st.session_state.auth_page = "landing"
-        st.rerun()
+        # Add back button outside the form
+        if st.button("← Back to Landing Page", use_container_width=True):
+            st.session_state.auth_page = "landing"
+            st.rerun()
 
 def landing_page():
    
@@ -136,13 +136,14 @@ def landing_page():
        
         # Optional demo or guest access
         st.markdown("---")
-        if st.button("Continue as Guest", use_container_width=True):
+        if st.button("Continue as Guest", use_container_width=True, disabled=True):
             st.session_state.authenticated = True
             st.session_state.username = "Guest"
             st.rerun()
 
 # Main Authentication Router
 def auth_router():
+
     if st.session_state.authenticated:
         # User is already authenticated, no need to show auth pages
         return True
@@ -159,4 +160,5 @@ def auth_router():
     return False
 
 st.set_page_config(page_title="Login/Signup", layout="centered")
+
 auth_router()

@@ -3,6 +3,7 @@ from init import *
 from conversation_display import *
 from survey import *
 from survey_gen import *
+import time
 
 st.set_page_config(page_title="NTU Teaching Assistant Chatbot", layout="wide")
 
