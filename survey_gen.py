@@ -49,44 +49,55 @@ def query_search(query):
     all_questions = search_all()
     
     relevance_prompt = f"""
-    Analyze the user's question below and identify the key themes, intent, and context. From the predefined survey question list {all_questions}, select and rank the top 3-5 most relevant questions to ask the user next. Prioritize questions that:
-
-    1. Directly address the user’s explicit or implicit needs,
-    2. Align with the topic’s urgency/depth (e.g., factual vs. exploratory),
-    3. Complement the conversation flow (e.g., follow-up, clarification),
-    4. Balance open-ended and closed-ended formats based on the query’s complexity.
-
-    For each selected question, provide a brief rationale. Exclude redundant or generic questions.
-
-    User Query: {query}
-
-    Response Format:
-    ```json
-    {{
-      "selected_questions": [
+        Analyze the following user query: "{query}"
+        
+        Below is a list of available survey questions:
+        {all_questions}
+        
+        Select 3-5 survey questions that are most relevant to the user's query by considering:
+        
+        1. Entity matching: Identify key entities in the query (e.g., people, products, services, processes, experiences) and prioritize questions about those specific entities.
+        - Example: If the query mentions a specific person, prioritize questions about individual performance or characteristics.
+        - Example: If the query is about a product or service, prioritize questions about features, quality, or satisfaction.
+        
+        2. Intent alignment: Determine what the user is trying to learn or evaluate, and select questions that address that intent.
+        - Example: If the query suggests the user wants feedback on performance, prioritize evaluation questions.
+        - Example: If the query suggests the user wants information about preferences, prioritize questions about likes/dislikes.
+        
+        3. Contextual relevance: Consider the broader context implied by the query, not just explicit keywords.
+        - Example: A query about a "manager" suggests interest in leadership, communication, and decision-making.
+        - Example: A query about a "checkout process" suggests interest in user experience and efficiency.
+        
+        4. Question diversity: Include a mix of question types to provide comprehensive feedback while staying relevant to the query focus.
+        
+        Return the selected questions in this JSON format:
+        ```json
         {{
-          "rank": 1,
-          "question": "Selected survey question",
-          "reason": "Explanation of relevance to the query",
-          "type": "open/closed"
-        }},
-        ...
-      ]
-    }}
-    ```
-    """
+        "selected_questions": [
+            {{
+            "question_text": "Selected survey question",
+            "entity_match": "Selected entity",
+            "reasoning": "Reason for selection"
+            }},
+            // Additional questions...
+        ]
+        }}
+        ```
+        
+        Important: Prioritize questions that match the most significant entities and intents in the query, even if they don't share exact keywords.
+        """
     
     survey_questions = st.session_state.openai_llm.invoke(relevance_prompt).content
     # Add processing logic to process JSON output
     try:
         clean_json = survey_questions.replace('```json', '').replace('```', '').strip()
         survey_data = json.loads(clean_json)
-        return [q["question"] for q in survey_data["selected_questions"]]
+        return [q["question_text"] for q in survey_data["selected_questions"]]
     except json.JSONDecodeError:
         print("Error parsing JSON response")
         return []
 
-def find_exact_matches_by_id(query):
+def find_exact_matches_intersection(query):
     """
     Find exact matches between result['content'] from vector_search() 
     and survey_questions from query_search() based on their IDs (e.g., A2, A4).

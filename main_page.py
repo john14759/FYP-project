@@ -13,7 +13,7 @@ if 'initialised' not in st.session_state:
     st.session_state.initialised = True
 
 main_chatbot_interface()
-st.session_state.conversation
+#st.session_state.conversation
 
     
 

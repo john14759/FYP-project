@@ -1,5 +1,4 @@
 import streamlit as st
-from login_signup_page import auth_router
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -16,7 +15,7 @@ login_signup_page = st.Page("login_signup_page.py", title = "Login/Signup", icon
 chatbot_main_page = st.Page("main_page.py", title = "NTU Chatbot Helper", icon="🤖", default=True)
 survey_gen_page = st.Page("survey_generator_main_page.py", title = "Survey Generator", icon="🛠️")
 survey_vis_page = st.Page("survey_visualisation_page.py", title = "Survey Visualisation", icon="📊")
-context_uploader_page = st.Page("context_uploader_page.py", title = "Context Uploader", icon="📝")
+context_uploader_page = st.Page("context_uploader_page.py", title = "Chatbot Customisation", icon="📝")
 logout = st.Page(logout_function, title = "Logout", icon="🚪")
 
 # Handle navigation based on authentication and user role

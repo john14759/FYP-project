@@ -132,12 +132,12 @@ def upload_processing_page():
     col1, col2 = st.columns([0.15,1.25])
 
     with col1:
-        if st.button("❌ Reupload files"):
+        if st.button("❌ Reupload files", key="reupload_1"):
             st.session_state["page"] = "upload"
             st.rerun()
 
     with col2:
-        if st.button("✅ Next"):
+        if st.button("✅ Next", key="next_button_1"):
             st.session_state["page"] = "ai_processing_staging"
             st.rerun()
 
@@ -159,7 +159,7 @@ def ai_processing_staging_page():
     col1, col2 = st.columns([0.15,1.25])
 
     with col1:
-        if st.button("❌ Reupload files"):
+        if st.button("❌ Reupload files", key="reupload_2"):
             st.session_state["page"] = "upload"
             st.rerun()
 
@@ -177,14 +177,13 @@ def ai_processing_staging_page():
     - Grammar and spelling accuracy
     - Question clarity and readability
     - Duplicate or similar questions
-    - Bias or leading language
+    - Similar domain focus
 
     **Benefits:**
     - Ensures consistent question format
     - Improves data quality
     - Reduces survey bias
     - Optimizes question effectiveness
-    - Validates tag assignments
 
     This process helps create a more reliable and effective survey experience. Processing time varies based on file size.
     """)
@@ -367,7 +366,7 @@ def llm_file_check_page():
             col1, col2 = st.columns([0.15,1.25])
 
             with col1:
-                if st.button("❌ Reupload files"):
+                if st.button("❌ Reupload files", key="reupload_3"):
                     st.session_state["page"] = "upload"
                     st.session_state["processed_uploaded_file"] = None
                     del st.session_state["llm_check_question"]
@@ -375,7 +374,7 @@ def llm_file_check_page():
 
             with col2:
                 #if "llm_check_question" in st.session_state and not st.session_state.llm_check_question["invalid_questions"]:
-                    if st.button("✅ Next"):
+                    if st.button("✅ Next", key="next_button_2"):
                         st.session_state["page"] = "index_generation"
                         st.rerun()
 
@@ -383,7 +382,7 @@ def llm_file_check_page():
             invalid_questions = questions.get("invalid_questions", [])
             
             if invalid_questions:
-                st.subheader("📝 🚩 Action Required: Invalid Questions Detected")
+                st.subheader("📝 🚩 Action Required: Flagged Questions Detected")
                 with st.expander("❓ Need Help?"):
                     st.error("""
                     ### How to edit invalid questions?
@@ -478,28 +477,6 @@ def llm_file_check_page():
 
     # Display final valid questions after editing
     if "llm_check_question" in st.session_state and not st.session_state.llm_check_question["invalid_questions"]:
-
-        st.info(f"""Useful Tools:
-                \n ❌ Reupload files: Reupload the survey questions.
-                \n ✅ Next: Click this button if there are no errors flagged by the AI and you confirm the generated questions. \n
-                
-                Note: If you disagree with the AI's suggestions or believe the flagged issues are not critical, you can still proceed. 
-                """)
-
-        col1, col2 = st.columns([0.15,1.25])
-
-        with col1:
-            if st.button("❌ Reupload files"):
-                st.session_state["page"] = "upload"
-                st.session_state["processed_uploaded_file"] = None
-                del st.session_state["llm_check_question"]
-                st.rerun()
-
-        with col2:
-            #if "llm_check_question" in st.session_state and not st.session_state.llm_check_question["invalid_questions"]:
-                if st.button("✅ Next"):
-                    st.session_state["page"] = "index_generation"
-                    st.rerun()
 
         st.success("✅ All questions validated successfully!")
         

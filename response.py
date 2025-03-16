@@ -223,7 +223,7 @@ def answer(query):
         with st.spinner('Formulating an answer based on the provided context...'):
             final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
             time.sleep(0.5)
-        st.session_state.survey_questions = find_exact_matches_by_id(query)
+        st.session_state.survey_questions = find_exact_matches_intersection(query)
 
     else:
         # Check relevance to data science and AI
@@ -259,13 +259,13 @@ def answer(query):
                 with st.spinner('Formulating answer based on past conversation memories...'):
                     final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
                     time.sleep(0.5)
-                st.session_state.survey_questions = find_exact_matches_by_id(query)
+                st.session_state.survey_questions = find_exact_matches_intersection(query)
 
             else:
                 # Get an answer from the primary OpenAI LLM
                 with st.spinner('Searching for the most relevant answer...'):
                     final_answer = generate_relevant_answer_with_links(query)
                     time.sleep(0.5)
-                st.session_state.survey_questions = find_exact_matches_by_id(query)
+                st.session_state.survey_questions = find_exact_matches_intersection(query)
 
     return final_answer  # Return the final answer at once
