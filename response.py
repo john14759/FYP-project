@@ -83,56 +83,111 @@ def is_relevant_to_course(query):
     return relevance_check == "yes"
 
 
-def generate_relevant_answer_with_links(query):
+def find_answer_from_notes(query):
     """
     Generate a concise answer to a query related to Data Science and AI with a maximum of 3 sentences,
     followed by relevant links to source materials.
     """
 
     # Search for relevant context in the vector store
-    context = st.session_state.coursenotes_search.search(query, top=3)
+    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
+    context = st.session_state.coursenotes_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
     contexts = ""
-    scores = []
     for con in context:
-        contexts += con['content'] + "\n\n"  # Add separators for clarity
-        scores.append(con['@search.score'])
+        contexts += con['content'] + "\n\n" 
         
-    print("Notes Scores:", scores)
-    print("Notes Contexts:", contexts)
+    #print("Notes Contexts:", contexts)
             
     context_query = f"""
-        Please go through the notes context and answer the user query well based on the following provided below.\n
+        Please go through the context and see if you can answer the user's query.\n
         Context: {contexts}
         Query: {query}
 
-        Format your response as follows:
-        - Explanation from notes: [Provide your answer here in 3 sentences max]
+        If you you canfind an answer in the context, reply with "yes"
+        If you cannot find an answer in the context, please reply with "no"
+    """
+    
+    ai_notes_response = st.session_state.openai_llm.invoke(context_query).content.lower().strip()
+    print("Can find from notes?:", ai_notes_response)
+
+    return ai_notes_response == "yes"
+
+
+def generate_relevant_answer_with_links(query):
+
+    # Search for relevant context in the vector store
+    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
+    context = st.session_state.coursenotes_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
+    contexts = ""
+    for con in context:
+        contexts += con['content'] + "\n\n" 
+            
+    context_query = f"""
+        Analyze the provided context and answer the query using ONLY information from the context.\n
+        Context: {contexts}
+        Query: {query}
 
         If you cannot find an answer in the context, please reply with 'Explanation from notes: No information of this question in the notes.'
     """
 
     ai_notes_response = st.session_state.openai_llm.invoke(context_query).content
 
-    print("Generated AI Notes Answer:", ai_notes_response)
+    #print("Generated AI Notes Answer:", ai_notes_response)
 
     # Primary Answer Generation Prompt
     answer_prompt = f"""
-    Answer the following query with a clear, concise explanation. 
-    Provide an educational response in 3 sentences maximum. After your explanation, suggest three relevant and trustworthy 
-    online resources for further reading. Ensure that they are valid online resources URL with working links.
+    You are an experienced educator explaining concepts to students at various learning levels. 
 
-    Also provide me 1 youtube video link related to the query.
+    Address this query: "{query}"
 
-    Query: "{query}"
+    Provided explanation from notes: "{ai_notes_response}"
 
-    Format your response as follows:
-    - Explanation from notes: {ai_notes_response}
-    - Explanation: [Provide your own take of the answer to the question without relying on the explanation from notes. Provide your answer here in 3 sentences max]
-    - Suggested Reading:
-      1. [Title or topic of the first resource] - [URL of the first resource]
-      2. [Title or topic of the second resource] - [URL of the second resource]
-      3. [Title or topic of the third resource] - [URL of the third resource]
-    - Youtube Video Link: [Link to the youtube video]
+    **Response Requirements:**
+    1. Provide two distinct explanations:
+    - First, create your OWN clear, concise explanation using simple language
+    - Then integrate key points from provided notes (if available) as supplemental information
+
+    2. Structure your response as:
+    ### Conceptual Explanation:
+    - 1-2 paragraph plain-language overview
+    - Include real-world examples/analogies where applicable
+    - Highlight common misunderstandings
+    - Use bullet points for key takeaways
+
+    ### Supplemental Explanation From Notes:
+    - [Only if notes exist] Summarize key points from reference materials
+    - Never repeat your original explanation verbatim
+
+    ### Verified Resources:
+    - Suggest 3 authoritative sources meeting these criteria:
+        * Government/educational domains (.gov/.edu) or established platforms (Khan Academy, Britannica)
+        * Directly relevant to query subtopics
+        * Active links (test URL formatting)
+    - Include 1 YouTube video from official educational channels (CrashCourse, TED-Ed, MIT OpenCourseWare) or videos with >100k views & >90% likes
+
+    **Format Example:**
+    ### Conceptual Explanation: 
+    [Your original explanation here...]
+
+    ### Supplemental Explanation From Notes: 
+    - [Condensed note point 1]
+    - [Condensed note point 2] 
+
+    ### Verified Resources:
+    1. [Resource Title] - [Full URL]
+    - Domain type/credentials (e.g., "NIH medical resource")
+    2. [Interactive Simulation: Topic] - [URL]
+    3. [Research Paper Summary] - [URL]
+
+    ### Recommended Video:
+    - [Video Title] by [Creator] - [URL]
+    - Duration & content focus (e.g., "12-min visual guide to X process")
+
+    **Quality Checks:**
+    - If query requires technical terms, provide simple definitions in parentheses
+    - Flag any debated/controversial aspects of the topic
+    - Prioritize ADA-compliant resources for accessibility
+    - Never include paywalled resources
     """
 
     # Invoke the OpenAI LLM
@@ -201,14 +256,12 @@ def answer(query):
 
     if relevant_to_course:
         # Search for relevant context in the vector store
-        context = st.session_state.courseinfo_search.search(query, top=3)
+        vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
+        context = st.session_state.courseinfo_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
         contexts = ""
-        scores = []
         for con in context:
-            contexts += con['content'] + "\n\n"  # Add separators for clarity
-            scores.append(con['@search.score'])
+            contexts += con['content'] + "\n\n" 
         
-        print(scores)
         print(contexts)
             
         context_query = f"""
@@ -222,12 +275,12 @@ def answer(query):
         # Try to get an answer from the primary OpenAI LLM
         with st.spinner('Formulating an answer based on the provided context...'):
             final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
-            time.sleep(0.5)
+            #time.sleep(0.5)
         st.session_state.survey_questions = find_exact_matches_intersection(query)
 
     else:
         # Check relevance to data science and AI
-        with st.spinner('Checking if query is related to Data Science and AI...'):
+        with st.spinner('Checking if query is related to context...'):
             is_relevant = is_relevant_to_context(query)
             time.sleep(0.5)
 
@@ -235,9 +288,12 @@ def answer(query):
         with st.spinner('Checking if the query continues a past conversation...'):
             is_continuation = check_if_related_to_past_conversations(query)
             time.sleep(0.5)
+        
+        with st.spinner('Checking whether question is related to notes...'):
+            is_notes = find_answer_from_notes(query)
 
         # Preliminary check if the query is relevant
-        if not is_relevant and not is_continuation:
+        if not ((is_relevant or is_continuation) or is_notes):
             final_answer = "My area of expertise is the context specified only. Please ask a question related to this topic."
         else:
             if is_continuation:
@@ -258,14 +314,14 @@ def answer(query):
                 # Invoke the OpenAI LLM for further answer
                 with st.spinner('Formulating answer based on past conversation memories...'):
                     final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
-                    time.sleep(0.5)
+                    #time.sleep(0.5)
                 st.session_state.survey_questions = find_exact_matches_intersection(query)
 
             else:
                 # Get an answer from the primary OpenAI LLM
-                with st.spinner('Searching for the most relevant answer...'):
+                with st.spinner('Formulating the best answer possible...'):
                     final_answer = generate_relevant_answer_with_links(query)
-                    time.sleep(0.5)
+                    #time.sleep(0.5)
                 st.session_state.survey_questions = find_exact_matches_intersection(query)
 
     return final_answer  # Return the final answer at once

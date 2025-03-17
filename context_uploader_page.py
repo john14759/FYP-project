@@ -77,7 +77,6 @@ def context_uploader_page():
         if st.session_state.context_success:
             st.success("✅ Context updated successfully!")
 
-        
 
     with information_tab:
         st.markdown("### **🔒 Upload information context for the chatbot here:**")
@@ -112,27 +111,26 @@ def context_uploader_page():
         )
 
         if uploaded_information_files:
-            st.session_state.uploaded_information_files = uploaded_information_files
+            st.session_state.uploaded_notes_files = uploaded_information_files
 
-            if st.button("Process Files"):
-                # Create a placeholder for status messages
+            if st.button("Process Information Files"):
                 status_text = st.empty()
-                # Create a progress bar
                 progress_bar = st.progress(0)
-                
-                documents = []
                 temp_dir = tempfile.TemporaryDirectory()
+
                 try:
                     total_files = len(uploaded_information_files)
-                    
+                    all_success = True
+
                     # Process each uploaded file
-                    for i, file in enumerate(uploaded_information_files):
+                    for file_idx, file in enumerate(uploaded_information_files):
                         # Update progress text and bar
-                        progress_value = (i) / total_files
-                        status_text.text(f"Processing file {i+1} of {total_files}: {file.name}")
+                        progress_value = (file_idx+1) / total_files
+                        status_text.text(f"Processing {file.name} ({file_idx+1}/{total_files})")
                         progress_bar.progress(progress_value)
                         
-                        # Save to temporary file
+                        # Load single file's documents
+                        documents = []
                         temp_path = os.path.join(temp_dir.name, file.name)
                         with open(temp_path, "wb") as f:
                             f.write(file.getbuffer())
@@ -151,37 +149,28 @@ def context_uploader_page():
                         for doc in loaded_docs:
                             doc.metadata['source'] = file.name
                         documents.extend(loaded_docs)
+
+                        # Call your document processing function
+                        result = add_or_update_docs(
+                            documents=documents,
+                            index_name="information"  # Replace with your actual index name
+                        )
+
+                        if result is not True:
+                            st.error(f"Error processing {file.name}: {result}")
+                            all_success = False
+                            break  # Exit on first error
                     
-                    # Update status for index operations
-                    status_text.text("Preparing document index...")
-                    progress_bar.progress(0.8)
-                    
-                    delete_index(index_name="course_info")
-                    create_index(index_name="information", embedding_dimension=1536)
-                    
-                    # Update status for final processing
-                    status_text.text("Adding documents to index...")
-                    progress_bar.progress(0.9)
-                    
-                    # Call your document processing function
-                    result = add_or_update_docs(
-                        documents=documents,
-                        index_name="information"  # Replace with your actual index name
-                    )
-                    
-                    # Complete the progress bar
-                    progress_bar.progress(1.0)
-                    
-                    if result is True:
+                    if all_success:
                         status_text.text("Processing complete!")
                         st.success("Files processed successfully!")
-                    else:
-                        st.error(f"Error processing files: {result}")
+                        st.balloons()
+
+                except Exception as e:
+                    st.error(f"Unexpected error: {str(e)}")
                 finally:
                     temp_dir.cleanup()
-                    st.balloons()
                     
-
     with notes_tab:
         st.markdown("### **🔒 Upload extra notes for your chatbot here:**")
 
@@ -214,24 +203,23 @@ def context_uploader_page():
             st.session_state.uploaded_notes_files = uploaded_notes_files
 
             if st.button("Process Note Files"):
-                # Create a placeholder for status messages
                 status_text = st.empty()
-                # Create a progress bar
                 progress_bar = st.progress(0)
-                
-                documents = []
                 temp_dir = tempfile.TemporaryDirectory()
+
                 try:
                     total_files = len(uploaded_notes_files)
-                    
+                    all_success = True
+
                     # Process each uploaded file
-                    for i, file in enumerate(uploaded_notes_files):
+                    for file_idx, file in enumerate(uploaded_notes_files):
                         # Update progress text and bar
-                        progress_value = (i) / total_files
-                        status_text.text(f"Processing file {i+1} of {total_files}: {file.name}")
+                        progress_value = (file_idx+1) / total_files
+                        status_text.text(f"Processing {file.name} ({file_idx+1}/{total_files})")
                         progress_bar.progress(progress_value)
                         
-                        # Save to temporary file
+                        # Load single file's documents
+                        documents = []
                         temp_path = os.path.join(temp_dir.name, file.name)
                         with open(temp_path, "wb") as f:
                             f.write(file.getbuffer())
@@ -250,95 +238,94 @@ def context_uploader_page():
                         for doc in loaded_docs:
                             doc.metadata['source'] = file.name
                         documents.extend(loaded_docs)
+
+                        # Call your document processing function
+                        result = add_or_update_docs(
+                            documents=documents,
+                            index_name="notes"  # Replace with your actual index name
+                        )
+
+                        if result is not True:
+                            st.error(f"Error processing {file.name}: {result}")
+                            all_success = False
+                            break  # Exit on first error
                     
-                    # Update status for index operations
-                    status_text.text("Preparing document index...")
-                    progress_bar.progress(0.8)
-                    
-                    delete_index(index_name="course_info")
-                    create_index(index_name="notes", embedding_dimension=1536)
-                    
-                    # Update status for final processing
-                    status_text.text("Adding documents to index...")
-                    progress_bar.progress(0.9)
-                    
-                    # Call your document processing function
-                    result = add_or_update_docs(
-                        documents=documents,
-                        index_name="notes"  # Replace with your actual index name
-                    )
-                    
-                    # Complete the progress bar
-                    progress_bar.progress(1.0)
-                    
-                    if result is True:
+                    if all_success:
                         status_text.text("Processing complete!")
                         st.success("Files processed successfully!")
-                    else:
-                        st.error(f"Error processing files: {result}")
+                        st.balloons()
+
+                except Exception as e:
+                    st.error(f"Unexpected error: {str(e)}")
                 finally:
                     temp_dir.cleanup()
-                    st.balloons()
 
 def add_or_update_docs(documents, index_name):
     try:
+        # Validate input documents
+        if not documents:
+            return True
 
-        embeddings = AzureOpenAIEmbeddings(azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT'], 
-                                   api_key=os.environ['AZURE_OPENAI_APIKEY'], 
-                                   model=os.environ['TEXT_EMBEDDING_MODEL_NAME'],
-                                   azure_deployment=os.environ['TEXT_EMBEDDING_DEPLOYMENT_NAME'])
+        # Get filename from first document (assume all docs are from same source)
+        first_doc = documents[0]
+        filename = Path(first_doc.metadata['source']).name
 
-        search_client = SearchClient(
-            endpoint=os.environ.get('AZURE_AI_SEARCH_ENDPOINT'), 
-            index_name=index_name, 
-            credential= AzureKeyCredential(os.environ.get('AZURE_AI_SEARCH_API_KEY'))
+        # Validate all documents share the same source
+        for doc in documents:
+            current_filename = Path(doc.metadata['source']).name
+            if current_filename != filename:
+                raise ValueError("All documents must be from the same source file")
+
+        # Initialize embeddings and search client
+        embeddings = AzureOpenAIEmbeddings(
+            azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT'],
+            api_key=os.environ['AZURE_OPENAI_APIKEY'],
+            model=os.environ['TEXT_EMBEDDING_MODEL_NAME'],
+            azure_deployment=os.environ['TEXT_EMBEDDING_DEPLOYMENT_NAME']
         )
 
-        text_splitter = CharacterTextSplitter(chunk_size= 1500, chunk_overlap=500)
+        search_client = SearchClient(
+            endpoint=os.environ['AZURE_AI_SEARCH_ENDPOINT'],
+            index_name=index_name,
+            credential=AzureKeyCredential(os.environ['AZURE_AI_SEARCH_API_KEY'])
+        )
+
+        # Combine all pages into a single text
+        combined_text = "\n".join([doc.page_content for doc in documents])
         
-        # List to store all the docs that need to be added
-        docs_to_add_final = []
+        # Split by character chunks
+        text_splitter = CharacterTextSplitter(
+            chunk_size=1000, 
+            chunk_overlap=200, 
+            separator="\n"
+        )
+        chunks = text_splitter.split_text(combined_text)
 
-        # List to store all the docs that need to be updated
-        docs_to_update_final = []
+        # Check for existing documents with this filename
+        search_results = list(search_client.search(filter=f"filename eq '{filename}'"))
+        existing_ids = [result['id'] for result in search_results]
 
-        # Loop to separate the docs that need to be updated from the docs that need to be added
-        for doc in documents:
-            filename = Path(doc.metadata['source']).name
-            search_results = list(search_client.search(filter=f"filename eq '{filename}'"))
-            split_docs = text_splitter.split_documents([doc])
+        # Delete existing documents if any
+        if existing_ids:
+            search_client.delete_documents([{"id": id} for id in existing_ids])
 
-            if search_results:
-                print("update!")
-                docs_to_update_id = [result['id'] for result in search_results] 
-                docs_to_update_page_content = [sdoc.page_content for sdoc in split_docs] 
-                docs_to_update_embeddings = embeddings.embed_documents(docs_to_update_page_content) 
+        # Generate embeddings for all chunks at once (more efficient)
+        chunk_embeddings = embeddings.embed_documents(chunks)
 
-                for i, sdoc in enumerate(split_docs):
-                    docs_to_update_final.append({
-                        'id': docs_to_update_id[i],
-                        'content': sdoc.page_content,
-                        'content_vector': docs_to_update_embeddings[i],
-                        'filename': filename
-                    })
-            else:
-                print("add!")
-                docs_to_add_page_content = [sdoc.page_content for sdoc in split_docs]
-                docs_to_add_embeddings = embeddings.embed_documents(docs_to_add_page_content)
+        # Prepare documents for upload
+        docs_to_upload = [
+            {
+                "id": str(uuid.uuid4()),
+                "content": chunk,
+                "content_vector": chunk_embeddings[i],
+                "filename": filename
+            }
+            for i, chunk in enumerate(chunks)
+        ]
 
-                for i, sdoc in enumerate(split_docs):
-                    docs_to_add_final.append({
-                        'id': str(uuid.uuid4()),
-                        'content': sdoc.page_content,
-                        'content_vector': docs_to_add_embeddings[i],
-                        'filename': filename
-                    })
-
-        if docs_to_update_final:
-            search_client.merge_documents(docs_to_update_final)
-
-        if docs_to_add_final:
-            search_client.upload_documents(docs_to_add_final)
+        # Upload all new chunks
+        if docs_to_upload:
+            search_client.upload_documents(docs_to_upload)
 
         return True
 

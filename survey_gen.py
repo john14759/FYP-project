@@ -70,7 +70,7 @@ def query_search(query):
         
         4. Question diversity: Include a mix of question types to provide comprehensive feedback while staying relevant to the query focus.
         
-        Return the selected questions in this JSON format:
+        ALWAYS return ONLY the selected questions in this JSON format, without any extra commentary:
         ```json
         {{
         "selected_questions": [
@@ -88,6 +88,7 @@ def query_search(query):
         """
     
     survey_questions = st.session_state.openai_llm.invoke(relevance_prompt).content
+    #print("LLM-survey:", survey_questions)
     # Add processing logic to process JSON output
     try:
         clean_json = survey_questions.replace('```json', '').replace('```', '').strip()
