@@ -1,7 +1,6 @@
 from azure.search.documents.models import VectorizableTextQuery
 import json
 import streamlit as st
-import re
 
 def hybrid_search(query, top_k=5):
 
@@ -70,33 +69,40 @@ def query_search(query):
         
         4. Question diversity: Include a mix of question types to provide comprehensive feedback while staying relevant to the query focus.
         
-        ALWAYS return ONLY the selected questions in this JSON format, without any extra commentary:
-        ```json
+        Example response:
         {{
         "selected_questions": [
             {{
             "question_text": "Selected survey question",
             "entity_match": "Selected entity",
-            "reasoning": "Reason for selection"
+            "reasoning": "Short reason for selection"
             }},
             // Additional questions...
         ]
         }}
-        ```
         
         Important: Prioritize questions that match the most significant entities and intents in the query, even if they don't share exact keywords.
+        Important: Ensure your response is valid JSON that can be parsed programmatically.
         """
     
-    survey_questions = st.session_state.openai_llm.invoke(relevance_prompt).content
-    #print("LLM-survey:", survey_questions)
-    # Add processing logic to process JSON output
+    response = st.session_state.openai_llm.invoke(relevance_prompt).content
     try:
-        clean_json = survey_questions.replace('```json', '').replace('```', '').strip()
-        survey_data = json.loads(clean_json)
-        return [q["question_text"] for q in survey_data["selected_questions"]]
-    except json.JSONDecodeError:
-        print("Error parsing JSON response")
-        return []
+        # Check if response contains ```json before processing
+        if response.startswith("```json") and response.endswith("```"):
+            clean_json = response.replace('```json', '').replace('```', '').strip()
+        else:
+            clean_json = response  # No need to clean if not wrapped in ```json
+        
+        result = json.loads(clean_json)  # Attempt to parse JSON
+        return [q["question_text"] for q in result["selected_questions"]]
+
+    except json.JSONDecodeError as e:
+        # Print/log the actual error for debugging
+        print(f"JSON Decode Error: {e}")  
+        return {
+            "relevant": False,
+            "response": "An error occurred while processing your request. Please try again later."
+        }
 
 def find_exact_matches_intersection(query):
     """
@@ -113,9 +119,9 @@ def find_exact_matches_intersection(query):
     matches = []
 
     search_contents = hybrid_search(query, top_k=5)
-    print("Search content:", search_contents)
+    #print("Search content:", search_contents)
     survey_questions = query_search(query)
-    print("LLM response for survey:", survey_questions)
+    #print("LLM response for survey:", survey_questions)
 
     # Create sets for more efficient comparison
     search_set = set(search_contents)
@@ -124,6 +130,26 @@ def find_exact_matches_intersection(query):
     # Find the intersection of both sets
     matches = list(search_set.intersection(survey_set))
     print(matches)
+
+    # Get the client from session state
+    sql_client = st.session_state.sql_client
+
+    chatbot_db = sql_client['chatbot']  
+    surveys_collection = chatbot_db['surveys'] 
+
+    # Find all surveys for this user
+    user_surveys = surveys_collection.find({"user": st.session_state.username})
+    print(user_surveys)
+
+    # Collect all answered questions
+    answered_questions = set()
+    for survey in user_surveys:
+        answered_questions.update(survey.get("questions", []))
     
+    # Remove answered questions from matches
+    matches = [q for q in matches if q not in answered_questions]
+
+    print("Filtered matches:", matches)
+
     return matches
 

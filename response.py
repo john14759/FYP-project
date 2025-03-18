@@ -1,7 +1,5 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage
-from agentmemory import get_memories
-import time
 from survey_gen import *
 
 def generate_conversation_title(query):
@@ -17,8 +15,122 @@ def generate_conversation_title(query):
 
     return title_response
 
+def is_relevant_to_information(query):
+
+    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
+    context = st.session_state.information_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
+
+    contexts = ""
+    for con in context:
+        contexts += con['content'] + "\n" 
+
+    information_relevance_prompt = f"""
+    You are given the context and the query. The context contains tailored information from a Azure AI Search index.
+    Your task is to determine whether the context contains sufficient information to properly answer the query.
+
+    Query: "{query}"
+    Context: {contexts}
+
+    Respond in JSON format with two fields:
+    1. "relevant": Boolean value (true/false) indicating whether you can answer the query using the context.
+    2. "response": If relevant is true, provide a well-formatted, helpful response based on the context.
+                   If relevant is false, set this to "I'm sorry, I don't have enough context to answer that question."
+
+    Example response for sufficient context:
+    {{
+        "relevant": true,
+        "response": [WELL-FORMATTED RESPONSE]
+    }}
+    
+    Example response for insufficient context:
+    {{
+        "relevant": false,
+        "response": "I'm sorry, I don't have enough context to answer that question."
+    }}
+
+    Important: Ensure your response is valid JSON that can be parsed programmatically.
+    """
+
+    response = st.session_state.openai_llm.invoke(information_relevance_prompt).content
+
+    try:
+        # Check if response contains ```json before processing
+        if response.startswith("```json") and response.endswith("```"):
+            clean_json = response.replace('```json', '').replace('```', '').strip()
+        else:
+            clean_json = response  # No need to clean if not wrapped in ```json
+        
+        result = json.loads(clean_json)  # Attempt to parse JSON
+        return result
+
+    except json.JSONDecodeError as e:
+        # Print/log the actual error for debugging
+        print(f"JSON Decode Error: {e}")  
+        return {
+            "relevant": False,
+            "response": "An error occurred while processing your request. Please try again later."
+        }
+
+def is_relevant_to_notes(query):
+
+    # Search for relevant context in the vector store
+    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
+    context = st.session_state.notes_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
+    contexts = ""
+    for con in context:
+        contexts += con['content'] + "\n" 
+        
+    notes_relevance_prompt = f"""
+    You are given the context and the query. The context contains tailored notes from an Azure AI Search index.
+    Your task is to determine whether the context contains sufficient information to properly answer the query.
+
+    Query: "{query}"
+    Context: {contexts}
+
+    Respond in JSON format with two fields:
+    1. "relevant": Boolean value (true/false) indicating whether you can answer the query using the context.
+    2. "response": If relevant is true, provide a well-formatted, helpful response based on the context.
+                   If relevant is false, set this to "I'm sorry, I don't have enough context to answer that question."
+
+    Example response for sufficient context:
+    {{
+        "relevant": true,
+        "response": [WELL-FORMATTED RESPONSE]
+    }}
+    
+    Example response for insufficient context:
+    {{
+        "relevant": false,
+        "response": "I'm sorry, I don't have enough context to answer that question."
+    }}
+
+    Important: Ensure your response is valid JSON that can be parsed programmatically.
+    """
+
+    response = st.session_state.openai_llm.invoke(notes_relevance_prompt).content
+    
+    try:
+        # Check if response contains ```json before processing
+        if response.startswith("```json") and response.endswith("```"):
+            clean_json = response.replace('```json', '').replace('```', '').strip()
+        else:
+            clean_json = response  # No need to clean if not wrapped in ```json
+        
+        result = json.loads(clean_json)  # Attempt to parse JSON
+        return result
+
+    except json.JSONDecodeError as e:
+        # Print/log the actual error for debugging
+        print(f"JSON Decode Error: {e}")  
+        return {
+            "relevant": False,
+            "response": "An error occurred while processing your request. Please try again later."
+        }
+    
 def is_relevant_to_context(query):
+
     domain = st.session_state.chatbot_context
+
     # Step 1: Initial Relevance Check
     primary_prompt = f"""
     Determine if this query is relevant to {domain}.
@@ -34,7 +146,6 @@ def is_relevant_to_context(query):
     Respond ONLY with 'Yes' or 'No'.
     """
     primary_response = st.session_state.openai_llm.invoke(primary_prompt).content.lower()
-    print("Primary relevance check:", primary_response)
 
     if "yes" in primary_response:
         return True
@@ -52,7 +163,6 @@ def is_relevant_to_context(query):
     Respond ONLY with 'Yes' or 'No'.
     """
     fallback_response = st.session_state.openai_llm.invoke(fallback_prompt).content
-    print("Secondary relevance check:", fallback_response)
 
     # Step 2: If "Yes," return True
     if "yes" in fallback_response:
@@ -61,78 +171,7 @@ def is_relevant_to_context(query):
     # Step 5: Final Decision
     return False
 
-def is_relevant_to_course(query):
-    """
-    Determine whether the query is about the course's administrative or logistical aspects.
-    Examples of relevant queries:
-    - "Who are the course coordinators?"
-    - "What are the exam topics?"
-    - "How do I access the course materials?"
-    """
-    relevance_prompt = f"""
-    Determine if the following query is about administrative or logistical aspects of the course,
-    such as coordinators, exam topics, schedules, or access to materials.
-
-    Query: "{query}"
-
-    Answer with a simple 'Yes' or 'No'.
-    """
-    relevance_check = st.session_state.openai_llm.invoke(relevance_prompt).content.lower().strip()
-    print("Course relevance:", relevance_check)
-
-    return relevance_check == "yes"
-
-
-def find_answer_from_notes(query):
-    """
-    Generate a concise answer to a query related to Data Science and AI with a maximum of 3 sentences,
-    followed by relevant links to source materials.
-    """
-
-    # Search for relevant context in the vector store
-    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
-    context = st.session_state.coursenotes_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
-    contexts = ""
-    for con in context:
-        contexts += con['content'] + "\n\n" 
-        
-    #print("Notes Contexts:", contexts)
-            
-    context_query = f"""
-        Please go through the context and see if you can answer the user's query.\n
-        Context: {contexts}
-        Query: {query}
-
-        If you you canfind an answer in the context, reply with "yes"
-        If you cannot find an answer in the context, please reply with "no"
-    """
-    
-    ai_notes_response = st.session_state.openai_llm.invoke(context_query).content.lower().strip()
-    print("Can find from notes?:", ai_notes_response)
-
-    return ai_notes_response == "yes"
-
-
-def generate_relevant_answer_with_links(query):
-
-    # Search for relevant context in the vector store
-    vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
-    context = st.session_state.coursenotes_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
-    contexts = ""
-    for con in context:
-        contexts += con['content'] + "\n\n" 
-            
-    context_query = f"""
-        Analyze the provided context and answer the query using ONLY information from the context.\n
-        Context: {contexts}
-        Query: {query}
-
-        If you cannot find an answer in the context, please reply with 'Explanation from notes: No information of this question in the notes.'
-    """
-
-    ai_notes_response = st.session_state.openai_llm.invoke(context_query).content
-
-    #print("Generated AI Notes Answer:", ai_notes_response)
+def generate_relevant_answer_with_links(query, notes_response):
 
     # Primary Answer Generation Prompt
     answer_prompt = f"""
@@ -140,7 +179,7 @@ def generate_relevant_answer_with_links(query):
 
     Address this query: "{query}"
 
-    Provided explanation from notes: "{ai_notes_response}"
+    Provided explanation from notes: {notes_response}
 
     **Response Requirements:**
     1. Provide two distinct explanations:
@@ -192,28 +231,26 @@ def generate_relevant_answer_with_links(query):
 
     # Invoke the OpenAI LLM
     ai_response = st.session_state.openai_llm.invoke(answer_prompt).content
-
-    print("Generated AI Answer:", ai_response)
-
     return ai_response
 
 # Function to invoke the LLM to determine if the current query is related to past messages in the same conversation
-def check_if_related_to_past_conversations(current_query):
+def if_related_to_past_conversations(query):
+
     # Get the past 3 conversations between the human and AI
-    past_messages = st.session_state.conversation[-10:-1].copy() if len(st.session_state.conversation) > 1 else []
-    print(past_messages)
+    past_messages = st.session_state.conversation[-8:-1].copy() if len(st.session_state.conversation) > 1 else []
+    
     # If there are no previous messages, it can't be related
     if not past_messages:
-        return False
+        return {"is_related": False, "relevant_context": ""}
     
     # Create the context for the LLM
     context_query = f"""
     Analyze if the current query continues or relates to the previous conversations.
 
-    ### Previous Conversations:
+    ### Previous Conversations [ordered chronologically from the earliest (top) to the latest (bottom)]:
     {past_messages}
 
-    ### Current Query: {current_query}
+    ### Current Query: "{query}"
     
     ### Analysis Criteria:
     1. LINGUISTIC CONTINUITY
@@ -232,96 +269,114 @@ def check_if_related_to_past_conversations(current_query):
        - Provides requested information from previous turns
        - Refers to a requested action mentioned earlier
 
-    If ANY of these criteria are met, the query is related to the previous conversation.
+    Return a JSON object with the following structure:
+    {{
+        "is_related": true/false,
+        "relevant_query": "If related, include the specific query or queries that are relevant to the current query. If not related, leave this empty.",
+        "relevant_response": "If related, include the specific parts of previous conversations that are relevant to the current query. Extract only the most essential information needed to understand the context of the current query. If not related, leave this empty."
+    }}
     
-    Answer with ONLY Yes' or 'No'.
+    Important: Ensure your response is valid JSON that can be parsed programmatically.
     """
 
     # Invoke the LLM to check for relevance
     response = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
-    print("Relevant to previous queries or not", response)
-    return response.strip().lower() == 'yes'
+    print("past convo", response)
+
+    try:
+        # Check if response contains ```json before processing
+        if response.startswith("```json") and response.endswith("```"):
+            clean_json = response.replace('```json', '').replace('```', '').strip()
+        else:
+            clean_json = response  # No need to clean if not wrapped in ```json
+        
+        result = json.loads(clean_json)  # Attempt to parse JSON
+        return result
+
+    except json.JSONDecodeError as e:
+        # Print/log the actual error for debugging
+        print(f"JSON Decode Error: {e}")  
+        return {
+            "relevant": False,
+            "response": "An error occurred while processing your request. Please try again later."
+        }
+    
+def continue_from_previous_conversation(query, conversation_history, info_reponse):
+    context_query = f"""
+    In our previous conversation, we discussed {conversation_history}.
+
+    The current query is: "{query}"
+
+    Additional information (if needed): {info_reponse}
+
+    Your task is to continue the conversation from the previous context using the additional information if required.
+
+    Return a response that seamlessly connects the previous conversation with the current query. Feel free to elaborate as much as needed.
+    """
+
+    response = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
+
+    return response
 
 def answer(query):
-    # Initialize a variable to hold the final answer
-    final_answer = ""
-
-    if st.session_state.new_conversation:
-        # Generate a title for the new conversation
-        st.session_state.conversation_title = generate_conversation_title(query)
-
-    with st.spinner('Checking whether related to course...'):
-        relevant_to_course = is_relevant_to_course(query)
-        time.sleep(0.5)
-
-    if relevant_to_course:
-        # Search for relevant context in the vector store
-        vector_query_content = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="content_vector")
-        context = st.session_state.courseinfo_search.search(search_text=query, vector_queries=[vector_query_content], top=3)
-        contexts = ""
-        for con in context:
-            contexts += con['content'] + "\n\n" 
-        
-        print(contexts)
-            
-        context_query = f"""
-            Please format and answer the user query based on the following provided below.\n
-            Context: {contexts}
-            Query: {query}
-
-            If you cannot find the answer in the context, please reply with 'Please email the professor for further assistance' and do not try to make up an answer.
-        """
-        
-        # Try to get an answer from the primary OpenAI LLM
-        with st.spinner('Formulating an answer based on the provided context...'):
-            final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
-            #time.sleep(0.5)
+    
+    with st.spinner("Thinking..."):
+        if st.session_state.new_conversation:
+            st.session_state.conversation_title = generate_conversation_title(query)
         st.session_state.survey_questions = find_exact_matches_intersection(query)
 
-    else:
-        # Check relevance to data science and AI
-        with st.spinner('Checking if query is related to context...'):
-            is_relevant = is_relevant_to_context(query)
-            time.sleep(0.5)
+    # Firstly, we check whether current query is related to previous conversations
+    with st.spinner("Checking past conversations..."):
+        is_relevant_to_past = if_related_to_past_conversations(query)
 
-        # Check if the query is related to past conversations
-        with st.spinner('Checking if the query continues a past conversation...'):
-            is_continuation = check_if_related_to_past_conversations(query)
-            time.sleep(0.5)
+    if is_relevant_to_past["is_related"]:
+        conversation_query = is_relevant_to_past["relevant_query"]
+        conversation_history = is_relevant_to_past["relevant_response"]
         
-        with st.spinner('Checking whether question is related to notes...'):
-            is_notes = find_answer_from_notes(query)
-
-        # Preliminary check if the query is relevant
-        if not ((is_relevant or is_continuation) or is_notes):
-            final_answer = "My area of expertise is the context specified only. Please ask a question related to this topic."
+        # Use the previous query/queries to search for useful information from information index
+        with st.spinner("Searching for relevant information..."):
+            info_response = is_relevant_to_information(conversation_query)
+        
+        # If information found, continue from previous conversation
+        if info_response["relevant"]:
+            info_response = info_response["response"]
+            return continue_from_previous_conversation(query, conversation_history, info_response)
+        
+        # Check notes if no information found
+        with st.spinner("Checking notes for relevant context..."):
+            relevant_to_notes = is_relevant_to_notes(conversation_query)
+        
+        if relevant_to_notes["relevant"]:
+            with st.spinner("Formulating answer..."):
+                notes_response = relevant_to_notes["response"]
+                return continue_from_previous_conversation(query, conversation_history, notes_response)
         else:
-            if is_continuation:
-                # Pull the conversation history
-                with st.spinner('Retrieving past conversation history...'):
-                    current_conversation_context = st.session_state.conversation[-10:].copy()
-
-                # Now create the context for the LLM, combining memory and history
-                context_query = f"""
-                    Retrieved past conversation messages: {current_conversation_context}
-                    Current query: {query}
-
-                    The latest human and AI messages are at the bottom of the retrieved past conversation messages. 
-                    Read all of the past messages and figure out which messages will be the most suitable to use as reference to the current query.
-                    Then, answer the current query as best as you can.
-                """
-                
-                # Invoke the OpenAI LLM for further answer
-                with st.spinner('Formulating answer based on past conversation memories...'):
-                    final_answer = st.session_state.openai_llm.invoke([HumanMessage(content=context_query)]).content
-                    #time.sleep(0.5)
-                st.session_state.survey_questions = find_exact_matches_intersection(query)
-
+            if is_relevant_to_context(conversation_query):
+                with st.spinner("Formulating answer..."):
+                    return continue_from_previous_conversation(query, conversation_history, notes_response = "None")
             else:
-                # Get an answer from the primary OpenAI LLM
-                with st.spinner('Formulating the best answer possible...'):
-                    final_answer = generate_relevant_answer_with_links(query)
-                    #time.sleep(0.5)
-                st.session_state.survey_questions = find_exact_matches_intersection(query)
+                return f"My area of expertise is in {st.session_state.chatbot_context}. Ask related questions."
 
-    return final_answer  # Return the final answer at once
+    else:
+
+        with st.spinner("Searching for relevant information..."):
+            info_response = is_relevant_to_information(query)
+        
+        if info_response["relevant"]:
+            return info_response["response"]
+        
+        with st.spinner("Checking notes for relevant context..."):
+            relevant_to_notes = is_relevant_to_notes(query)
+        
+        if relevant_to_notes["relevant"]:
+            with st.spinner("Formulating answer..."):
+                notes_response = relevant_to_notes["response"]
+                return generate_relevant_answer_with_links(query, notes_response)
+        else:
+            if is_relevant_to_context(query):
+                with st.spinner("Formulating answer..."):
+                    return generate_relevant_answer_with_links(query, notes_response="None")
+            else:
+                return f"My area of expertise is in {st.session_state.chatbot_context}. Ask related questions."
+
+

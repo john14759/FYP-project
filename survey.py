@@ -48,10 +48,10 @@ def show_survey():
                                 ):
                                     pass  # The logic is handled in the callback
                     else:
-                        st.success("Thank you for completing the survey, returning to chat...")
+                        st.success("Returning to chat...")
+                        st.toast("Thank you for your feedback!", icon="👍")
                         complete_survey()
                         survey_container.empty()
-                        st.balloons()
                         time.sleep(3)
                         st.rerun()
                     

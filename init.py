@@ -67,13 +67,13 @@ def init():
 
         #Setting up AI Azure Search
         progress_text.write("Setting up context indexes from Azure AI search...")
-        st.session_state.courseinfo_search = SearchClient(
+        st.session_state.information_search = SearchClient(
                 endpoint=os.environ.get('AZURE_AI_SEARCH_ENDPOINT'), 
                 index_name="information", 
                 credential= AzureKeyCredential(os.environ.get('AZURE_AI_SEARCH_API_KEY'))
             )
         
-        st.session_state.coursenotes_search = SearchClient(
+        st.session_state.notes_search = SearchClient(
                 endpoint=os.environ.get('AZURE_AI_SEARCH_ENDPOINT'), 
                 index_name="notes", 
                 credential= AzureKeyCredential(os.environ.get('AZURE_AI_SEARCH_API_KEY'))
@@ -113,12 +113,10 @@ def init():
         if 'new_conversation_title' not in st.session_state:
             st.session_state.conversation_title = None
         if 'cached_human_memories' not in st.session_state:
-            st.session_state.cached_human_memories = get_memories(category='human', sort_order="desc")
+            st.session_state.cached_human_memories = get_memories(category='human', sort_order="desc", n_results=1000, include_embeddings=False, filter_metadata={'username': st.session_state.username})
         if 'cached_ai_memories' not in st.session_state:
-            st.session_state.cached_ai_memories = get_memories(category='ai', sort_order="desc")
+            st.session_state.cached_ai_memories = get_memories(category='ai', sort_order="desc", n_results=1000, include_embeddings=False, filter_metadata={'username': st.session_state.username})
         progress_bar.progress(80)
-        if 'username' not in st.session_state:
-            st.session_state.username = None
         if 'chatbot_context' not in st.session_state:
             st.session_state.chatbot_context = None
             chatbot_db = st.session_state.sql_client['chatbot']  # Use the chatbot database
