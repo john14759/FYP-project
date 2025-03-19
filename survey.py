@@ -1,5 +1,6 @@
 import streamlit as st
 import time
+from conversation_display import generate_chat_timestamp
 
 def show_survey():
 
@@ -69,7 +70,8 @@ def complete_survey():
         survey_data = {
             "user": st.session_state.get("username", "Anonymous"),  # Optionally store user identity
             "questions": st.session_state.survey_questions,
-            "answers": st.session_state.survey_responses
+            "answers": st.session_state.survey_responses,
+            "timestamp": generate_chat_timestamp()
         }
         
         # Get the client from session state

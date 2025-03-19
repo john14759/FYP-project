@@ -23,12 +23,14 @@ def is_relevant_to_information(query):
     contexts = ""
     for con in context:
         contexts += con['content'] + "\n" 
+    
+    print(contexts)
 
     information_relevance_prompt = f"""
     You are given the context and the query. The context contains tailored information from a Azure AI Search index.
     Your task is to determine whether the context contains sufficient information to properly answer the query.
 
-    Query: "{query}"
+    Query: "{query}" 
     Context: {contexts}
 
     Respond in JSON format with two fields:
@@ -328,6 +330,7 @@ def answer(query):
     # Firstly, we check whether current query is related to previous conversations
     with st.spinner("Checking past conversations..."):
         is_relevant_to_past = if_related_to_past_conversations(query)
+        print(is_relevant_to_past)
 
     if is_relevant_to_past["is_related"]:
         conversation_query = is_relevant_to_past["relevant_query"]
@@ -361,12 +364,14 @@ def answer(query):
 
         with st.spinner("Searching for relevant information..."):
             info_response = is_relevant_to_information(query)
+            print(info_response)
         
         if info_response["relevant"]:
             return info_response["response"]
         
         with st.spinner("Checking notes for relevant context..."):
             relevant_to_notes = is_relevant_to_notes(query)
+            print(relevant_to_notes)
         
         if relevant_to_notes["relevant"]:
             with st.spinner("Formulating answer..."):

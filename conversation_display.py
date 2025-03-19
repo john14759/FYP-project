@@ -106,6 +106,8 @@ def main_chatbot_interface():
             if st.button("📝 Take survey"):
                 st.session_state.survey_shown = True
                 st.rerun()
+            st.chat_input("Enter your question here", disabled=True)
+            
 
         else:
             # Process user input first

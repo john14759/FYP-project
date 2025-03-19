@@ -129,7 +129,7 @@ def find_exact_matches_intersection(query):
     
     # Find the intersection of both sets
     matches = list(search_set.intersection(survey_set))
-    print(matches)
+    print("Unfiltered macthes", matches)
 
     # Get the client from session state
     sql_client = st.session_state.sql_client
@@ -139,7 +139,6 @@ def find_exact_matches_intersection(query):
 
     # Find all surveys for this user
     user_surveys = surveys_collection.find({"user": st.session_state.username})
-    print(user_surveys)
 
     # Collect all answered questions
     answered_questions = set()
