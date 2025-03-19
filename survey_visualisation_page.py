@@ -21,6 +21,17 @@ def get_survey_data():
     client = get_db_connection()
     return list(client['chatbot']['surveys'].find({}))
 
+
+def get_all_available_questions():
+    # Fetch all survey data
+    survey_data = get_survey_data()
+
+    # Loop through the survey data to find the `all_questions` entry
+    for survey in survey_data:
+        if 'all_questions' in survey:
+            return survey['all_questions']
+    return None  # Return None if no 'all_questions' field is found
+
 # Create page layout
 st.title("Survey Results Dashboard:")
 st.divider()
@@ -32,7 +43,8 @@ if not survey_data:
     st.warning("No survey data available!")
 else:
     # Process data
-    all_questions = list(set([q for doc in survey_data for q in doc['questions']]))
+    all_questions = list(set([q for doc in survey_data if 'questions' in doc for q in doc['questions']]))
+
     sorted_questions = sorted(all_questions)  # For consistent ordering
     
     # Create answer distribution dataframe
@@ -40,7 +52,7 @@ else:
     for question in sorted_questions:
         answers = []
         for doc in survey_data:
-            if question in doc['questions']:
+            if 'questions' in doc and question in doc['questions']:
                 idx = doc['questions'].index(question)
                 answers.append(doc['answers'][idx])
         
@@ -56,12 +68,73 @@ else:
 
     # Summary statistics
     st.header("Summary Statistics")
+    st.info("📊 High-level overview of response volume and question diversity")
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Total Responses", len(survey_data))
     with col2:
         st.metric("Unique Questions", len(sorted_questions))
     st.divider()
+
+    st.header("Survey Submission Timeline")
+    st.info("🕒 Interactive visualization of response patterns over time. Use slider/buttons to explore different time ranges")
+
+    # Process timestamp data
+    timeline_data = []
+    for doc in survey_data:
+        if 'timestamp' in doc:  # Ensure document has timestamp
+            try:
+                ts = pd.to_datetime(doc['timestamp'])
+                timeline_data.append({
+                    'User': doc['user'],
+                    'Timestamp': ts
+                })
+            except (TypeError, ValueError):
+                pass  # Skip invalid timestamps
+
+    if not timeline_data:
+        st.warning("No timestamp data available!")
+    else:
+        # Create timeline dataframe
+        df_timeline = pd.DataFrame(timeline_data)
+        
+        # Create interactive timeline plot
+        fig = px.scatter(
+            df_timeline,
+            x='Timestamp',
+            y='User',
+            color='User',
+            labels={'Timestamp': 'Submission Time', 'User': 'Respondent'},
+            category_orders={"User": sorted(df_timeline['User'].unique())},
+            color_discrete_sequence=px.colors.qualitative.Plotly
+        )
+        
+        # Add hover formatting and annotations
+        fig.update_traces(
+            marker=dict(size=10, line=dict(width=2, color='DarkSlateGrey')),
+            hovertemplate="<b>%{y}</b><br>%{x|%Y-%m-%d %H:%M:%S}<extra></extra>"
+        )
+        
+        # Add time range selector
+        fig.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1d", step="day", stepmode="backward"),
+                        dict(count=7, label="1w", step="day", stepmode="backward"),
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(step="all")
+                    ])
+                ),
+                rangeslider=dict(visible=True),
+                type="date"
+            ),
+            height=600,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.divider()
 
     # Get the accent color from the Reds color scale
     colors = px.colors.sequential.Reds[::-1]  # Reverse for better rating visibility
@@ -154,17 +227,19 @@ else:
 
     # Display the chart
     st.header("Answer Distribution Overview")
+    st.info("📈 Stacked rating breakdown per question. Hover for detailed counts, click legend to filter ratings")
     st.plotly_chart(fig, use_container_width=True)
     st.divider()
 
     # Detailed question analysis
     st.header("Detailed Question Analysis")
+    st.info("🔍 Click each question to expand detailed response metrics. Switch between distribution and percentage views")
     for question in sorted_questions:
         with st.expander(f"{question}", expanded=False):
             # Get answers for current question
             answers = []
             for doc in survey_data:
-                if question in doc['questions']:
+                if 'questions' in doc and question in doc['questions']:
                     idx = doc['questions'].index(question)
                     answers.append(doc['answers'][idx])
             
@@ -173,7 +248,7 @@ else:
                 continue
                 
             # Create interactive tabs
-            tab1, tab2, tab3 = st.tabs(["Distribution", "Breakdown", "Trend"])
+            tab1, tab2 = st.tabs(["Distribution", "Breakdown"])
             
             with tab1:
                 # Horizontal stacked bar (single question)
@@ -200,18 +275,68 @@ else:
                 )
                 fig2.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig2, use_container_width=True, key=f"pie_{question}")
+    
 
-            
-            with tab3:
-                # Time trend (if timestamp available in data)
-                st.write("Feature suggestion: Add timestamps to survey responses for temporal analysis")
+    st.divider()
+    st.header("Raw Data Preview:")
+    st.info("📋 Completeness overview. ✔️ = answered, ❌ = missing.")
 
-    # Raw data section
-    st.header("Raw Data Preview")
-    df_raw = pd.DataFrame([{
-        **{'User': doc['user']},
-        **{question: doc['answers'][doc['questions'].index(question)] 
-           if question in doc['questions'] else np.nan
-           for question in sorted_questions}
-    } for doc in survey_data])
-    st.dataframe(df_raw, use_container_width=True)
+    # Get all available questions from database
+    all_questions_list = get_all_available_questions()
+    if not all_questions_list:
+        st.error("Could not load question list from database")
+        st.stop()
+
+    # Create a dictionary to aggregate user responses
+    user_responses = {}
+
+    # Process all survey documents
+    for doc in survey_data:
+        if 'user' not in doc or 'questions' not in doc or 'answers' not in doc:
+            continue
+        
+        user = doc['user']
+        if user not in user_responses:
+            user_responses[user] = {}
+        
+        # Add all question-answer pairs for this submission
+        for q, a in zip(doc['questions'], doc['answers']):
+            user_responses[user][q] = a
+
+    # Create dataframe with all questions
+    data = []
+    for user, responses in user_responses.items():
+        row = {'User': user}
+        for question in all_questions_list:
+            row = {'Question': question}
+            for user in user_responses:
+                if question in user_responses[user]:
+                    row[user] = '✔️'  # Mark as answered
+                else:
+                    row[user] = '❌'  # Mark as not answered
+            data.append(row)
+
+    df_raw = pd.DataFrame(data)
+
+    # Reorder columns so that 'Question' is the first column
+    df_raw = df_raw[['Question'] + list(user_responses.keys())]
+
+    # Style the dataframe
+    styled_df = df_raw.style.applymap(lambda x: 'color: #d62728' if x == '❌' else 'color: #2ca02c')
+
+    # Display with optimized formatting
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        column_config={
+            "Question": st.column_config.TextColumn(
+                "Survey Question",
+                width="medium"
+            ),
+            **{user: st.column_config.Column(
+                user,
+                help="Shows ✔️ if answered or ❌ if not",
+                width="small"
+            ) for user in user_responses}
+        }
+    )

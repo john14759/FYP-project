@@ -1,6 +1,17 @@
 import streamlit as st
 import time
-from conversation_display import generate_chat_timestamp
+import datetime
+
+def generate_survey_timestamp():
+    """
+    Generates the current date and time for a chat message.
+
+    Returns:
+        str: The current date and time formatted as 'YYYY-MM-DD HH:MM:SS'.
+    """
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    return timestamp
 
 def show_survey():
 
@@ -71,7 +82,7 @@ def complete_survey():
             "user": st.session_state.get("username", "Anonymous"),  # Optionally store user identity
             "questions": st.session_state.survey_questions,
             "answers": st.session_state.survey_responses,
-            "timestamp": generate_chat_timestamp()
+            "timestamp": generate_survey_timestamp()
         }
         
         # Get the client from session state
