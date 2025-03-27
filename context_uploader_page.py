@@ -84,18 +84,15 @@ def context_uploader_page():
         st.info("""
         ### **Why upload documents?**
         
-        This feature allows you to provide your own context to the chatbot. 
+        The chatbot will use this information to provide personalized responses based on your uploaded content. \n
+        Without these documents, the chatbot won't have access to your specific information.
                 
-        Upload documents containing:
+        ### Upload documents containing:
         
-        • Personal or business FAQs
-        • Company policies or procedures
-        • Product information
-        • Specialized knowledge not available to the general AI
-        
-        The chatbot will use this information to provide personalized responses based on your uploaded content. Without these documents, the chatbot won't have access to your specific information.
-        
-        Simply upload your files and click "Process Files" to enhance the chatbot with your context.
+        • Personal or business FAQs \n
+        • Company policies or procedures \n
+        • Product information \n 
+        • Specialized knowledge not available to the general AI \n
         """)
 
          # Store uploaded file in session state
@@ -103,7 +100,7 @@ def context_uploader_page():
             st.session_state.uploaded_information_file = None
 
         uploaded_information_files = st.file_uploader(
-            "Choose files",
+            "Choose files (multiple files supported):",
             type=["pdf", "docx"],
             help="Supported formats: PDF, Word",
             accept_multiple_files=True,  # Allow multiple files
@@ -175,24 +172,22 @@ def context_uploader_page():
         st.markdown("### **🔒 Upload extra notes for your chatbot here:**")
 
         st.info("""
-        ### **Enhance Your Conversations with Notes & Documents**
+        ### Why upload notes?
 
-        Upload any text-based materials to provide additional context for the chatbot:
+        Adding these documents helps the chatbot provide more relevant and informed responses based on your specific materials. \n
+        The chatbot will reference these documents when answering your questions, making conversations more productive and tailored to your needs.
 
-        - Study notes and learning materials
-        - Research papers and articles 
-        - Books and published content
-        - Meeting notes or presentations
-        - Project documentation
-        - Any text you want the chatbot to reference
-
-        Adding these documents helps the chatbot provide more relevant and informed responses based on your specific materials. The chatbot will reference these documents when answering your questions, making conversations more productive and tailored to your needs.
-
-        Simply upload your files and click "Process Files" to get started.
+        ### Upload documents containing:
+        - Study notes and learning materials \n
+        - Research papers and articles \n
+        - Books and published content \n 
+        - Meeting notes or presentations \n 
+        - Project documentation \n 
+        - Any text you want the chatbot to reference \n
         """)
 
         uploaded_notes_files = st.file_uploader(
-            "Choose files",
+            "Choose files (multiple files supported):",
             type=["pdf", "docx"],
             help="Supported formats: PDF, Word",
             accept_multiple_files=True,  # Allow multiple files

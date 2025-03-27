@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 import re
 from response import *
-from datetime import date, datetime, timedelta
+import datetime
 from agentmemory import (
     create_memory
 )
@@ -18,7 +18,7 @@ def generate_chat_timestamp():
     Returns:
         str: The current date and time formatted as 'YYYY-MM-DD HH:MM:SS'.
     """
-    now = datetime.now()
+    now = datetime.datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
     return timestamp
 
@@ -131,10 +131,10 @@ def main_chatbot_interface():
 def display_chat_history():
 
     # Get today's date and calculate the date ranges for previous 7 and 30 days
-    today = date.today()
-    one_day_ago = today - timedelta(days=1)
-    seven_days_ago = today - timedelta(days=7)
-    thirty_days_ago = today - timedelta(days=30)
+    today = datetime.date.today()
+    one_day_ago = today - datetime.timedelta(days=1)
+    seven_days_ago = today - datetime.timedelta(days=7)
+    thirty_days_ago = today - datetime.timedelta(days=30)
 
     with st.sidebar:
         st.markdown(f"# {st.session_state.username}'s Chat History")
@@ -153,7 +153,7 @@ def display_chat_history():
 
         # Convert datetime string to date object for comparison
         def get_date_from_datetime(datetime_str):
-            return datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S').date()
+            return datetime.datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S').date()
 
         # Today's conversations
         st.markdown("#### Today")
@@ -212,7 +212,7 @@ def get_conversation_ids():
         
         if conversation_id:
             # Parse the datetime string
-            current_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+            current_datetime = datetime.datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
             
             if conversation_id not in conversations:
                 # If this is the first time we're seeing this conversation ID,
@@ -225,7 +225,7 @@ def get_conversation_ids():
                 }
             else:
                 # If we've seen this conversation before, keep the earlier timestamp
-                existing_datetime = datetime.strptime(
+                existing_datetime = datetime.datetime.strptime(
                     conversations[conversation_id]['datetime'],
                     '%Y-%m-%d %H:%M:%S'
                 )

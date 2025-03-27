@@ -64,16 +64,78 @@ else:
         })
     
     df_dist = pd.DataFrame(dist_data)
-    
 
     # Summary statistics
     st.header("Summary Statistics")
     st.info("📊 High-level overview of response volume and question diversity")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Responses", len(survey_data))
+        st.metric("Total Responses", sum(len(doc.get('answers', [])) for doc in survey_data))
     with col2:
-        st.metric("Unique Questions", len(sorted_questions))
+        st.metric("Unique Questions", len(sorted_questions) -1)
+    st.divider()
+
+    st.header("Individual User Completeness:")
+    st.info("📋 Completeness overview for each user: ✔️ = answered, ❌ = not yet answered")
+
+    # Get all available questions from database
+    all_questions_list = get_all_available_questions()
+    if not all_questions_list:
+        st.error("Could not load question list from database")
+        st.stop()
+
+    # Create a dictionary to aggregate user responses
+    user_responses = {}
+
+    # Process all survey documents
+    for doc in survey_data:
+        if 'user' not in doc or 'questions' not in doc or 'answers' not in doc:
+            continue
+        
+        user = doc['user']
+        if user not in user_responses:
+            user_responses[user] = {}
+        
+        # Add all question-answer pairs for this submission
+        for q, a in zip(doc['questions'], doc['answers']):
+            user_responses[user][q] = a
+
+    # Create one row per question
+    data = []
+    for question in all_questions_list:
+        row = {'Question': question}
+        for user in user_responses:
+            if question in user_responses[user]:
+                row[user] = '✔️'  # Mark as answered
+            else:
+                row[user] = '❌'  # Mark as not answered
+        data.append(row)
+
+    df_raw = pd.DataFrame(data)
+
+    # Reorder columns so that 'Question' is the first column
+    df_raw = df_raw[['Question'] + list(user_responses.keys())]
+
+    # Style the dataframe
+    styled_df = df_raw.style.applymap(lambda x: 'color: #d62728' if x == '❌' else 'color: #2ca02c')
+
+    # Display with optimized formatting
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        column_config={
+            "Question": st.column_config.TextColumn(
+                "Survey Question",
+                width="medium"
+            ),
+            **{user: st.column_config.Column(
+                user,
+                help="Shows ✔️ if answered or ❌ if not",
+                width="small"
+            ) for user in user_responses}
+        }
+    )
+
     st.divider()
 
     st.header("Survey Submission Timeline")
@@ -277,66 +339,4 @@ else:
                 st.plotly_chart(fig2, use_container_width=True, key=f"pie_{question}")
     
 
-    st.divider()
-    st.header("Raw Data Preview:")
-    st.info("📋 Completeness overview. ✔️ = answered, ❌ = missing.")
 
-    # Get all available questions from database
-    all_questions_list = get_all_available_questions()
-    if not all_questions_list:
-        st.error("Could not load question list from database")
-        st.stop()
-
-    # Create a dictionary to aggregate user responses
-    user_responses = {}
-
-    # Process all survey documents
-    for doc in survey_data:
-        if 'user' not in doc or 'questions' not in doc or 'answers' not in doc:
-            continue
-        
-        user = doc['user']
-        if user not in user_responses:
-            user_responses[user] = {}
-        
-        # Add all question-answer pairs for this submission
-        for q, a in zip(doc['questions'], doc['answers']):
-            user_responses[user][q] = a
-
-    # Create dataframe with all questions
-    data = []
-    for user, responses in user_responses.items():
-        row = {'User': user}
-        for question in all_questions_list:
-            row = {'Question': question}
-            for user in user_responses:
-                if question in user_responses[user]:
-                    row[user] = '✔️'  # Mark as answered
-                else:
-                    row[user] = '❌'  # Mark as not answered
-            data.append(row)
-
-    df_raw = pd.DataFrame(data)
-
-    # Reorder columns so that 'Question' is the first column
-    df_raw = df_raw[['Question'] + list(user_responses.keys())]
-
-    # Style the dataframe
-    styled_df = df_raw.style.applymap(lambda x: 'color: #d62728' if x == '❌' else 'color: #2ca02c')
-
-    # Display with optimized formatting
-    st.dataframe(
-        styled_df,
-        use_container_width=True,
-        column_config={
-            "Question": st.column_config.TextColumn(
-                "Survey Question",
-                width="medium"
-            ),
-            **{user: st.column_config.Column(
-                user,
-                help="Shows ✔️ if answered or ❌ if not",
-                width="small"
-            ) for user in user_responses}
-        }
-    )

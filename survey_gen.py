@@ -119,9 +119,9 @@ def find_exact_matches_intersection(query):
     matches = []
 
     search_contents = hybrid_search(query, top_k=5)
-    #print("Search content:", search_contents)
+    print("Search content:", search_contents)
     survey_questions = query_search(query)
-    #print("LLM response for survey:", survey_questions)
+    print("LLM response for survey:", survey_questions)
 
     # Create sets for more efficient comparison
     search_set = set(search_contents)

@@ -1,6 +1,5 @@
 import streamlit as st
 
-
 def generate_questions_step1(topic, purpose, audience):
 
     prompt_1 = f"""
@@ -125,6 +124,8 @@ def generate_json(final_output, purpose=None):
     {
         f"4. Ensure questions align with: {purpose}" if purpose else ""
     }
+
+    Important: Ensure your response is valid JSON that can be parsed programmatically.
     """
 
     json_response = st.session_state.openai_llm.invoke(json_prompt).content
@@ -158,7 +159,7 @@ def regenerate_question(question, tags, survey):
         - 'question': Unique Likert-scale question
         - 'tags': A list of relevant tags (2-5) based on the newly generated question.
 
-    Output ONLY valid JSON - no commentary.
+    Important: Ensure your response is valid JSON that can be parsed programmatically.
     """
 
     response = st.session_state.openai_llm.invoke(prompt).content
