@@ -119,9 +119,9 @@ def find_exact_matches_intersection(query):
     matches = []
 
     search_contents = hybrid_search(query, top_k=5)
-    print("Search content:", search_contents)
+    #print("Search content:", search_contents)
     survey_questions = query_search(query)
-    print("LLM response for survey:", survey_questions)
+    #print("LLM response for survey:", survey_questions)
 
     # Create sets for more efficient comparison
     search_set = set(search_contents)
@@ -129,7 +129,7 @@ def find_exact_matches_intersection(query):
     
     # Find the intersection of both sets
     matches = list(search_set.intersection(survey_set))
-    print("Unfiltered macthes", matches)
+    #print("Unfiltered macthes", matches)
 
     # Get the client from session state
     sql_client = st.session_state.sql_client
@@ -148,7 +148,7 @@ def find_exact_matches_intersection(query):
     # Remove answered questions from matches
     matches = [q for q in matches if q not in answered_questions]
 
-    print("Filtered matches:", matches)
+    #print("Filtered matches:", matches)
 
     return matches
 

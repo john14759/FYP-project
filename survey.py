@@ -9,7 +9,7 @@ def generate_survey_timestamp():
     Returns:
         str: The current date and time formatted as 'YYYY-MM-DD HH:MM:SS'.
     """
-    now = datetime.now()
+    now = datetime.datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
     return timestamp
 

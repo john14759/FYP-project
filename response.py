@@ -28,7 +28,8 @@ def is_relevant_to_information(query):
 
     information_relevance_prompt = f"""
     You are given the context and the query. The context contains tailored information from a Azure AI Search index.
-    Your task is to determine whether the context contains sufficient information to properly answer the query.
+    Your task is to use the context retrieved to properly answer the query as well as you can. 
+    If the context does not contains sufficient information, then you are not able to properly answer the query.
 
     Query: "{query}" 
     Context: {contexts}
@@ -84,7 +85,8 @@ def is_relevant_to_notes(query):
         
     notes_relevance_prompt = f"""
     You are given the context and the query. The context contains tailored notes from an Azure AI Search index.
-    Your task is to determine whether the context contains sufficient information to properly answer the query.
+    Your task is to use the context retrieved to properly answer the query as well as you can. 
+    If the context does not contains sufficient information, then you are not able to properly answer the query.
 
     Query: "{query}"
     Context: {contexts}

@@ -150,7 +150,8 @@ def context_uploader_page():
                         # Call your document processing function
                         result = add_or_update_docs(
                             documents=documents,
-                            index_name="information"  # Replace with your actual index name
+                            index_name="information",
+                            
                         )
 
                         if result is not True:
@@ -237,7 +238,7 @@ def context_uploader_page():
                         # Call your document processing function
                         result = add_or_update_docs(
                             documents=documents,
-                            index_name="notes"  # Replace with your actual index name
+                            index_name="notes"  
                         )
 
                         if result is not True:
@@ -260,6 +261,13 @@ def add_or_update_docs(documents, index_name):
         # Validate input documents
         if not documents:
             return True
+        
+        index_exists = get_index("information")
+        print(index_exists)
+        
+        if index_exists:
+            delete_index("information")
+            create_index(index_name, 1536)
 
         # Get filename from first document (assume all docs are from same source)
         first_doc = documents[0]
@@ -421,5 +429,20 @@ def delete_index(index_name):
     except Exception as e:
         print(f"An error occurred: {e}")
         return False
+    
+def get_index(index_name):
+
+    index_exists = True
+    search_client = SearchIndexClient(
+            endpoint=os.environ['AZURE_AI_SEARCH_ENDPOINT'],
+            credential=AzureKeyCredential(os.environ['AZURE_AI_SEARCH_API_KEY'])
+        )
+    try:
+       search_client.get_index(index_name)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
+    
+    return index_exists
 
 context_uploader_page()
