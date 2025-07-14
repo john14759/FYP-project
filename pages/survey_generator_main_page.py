@@ -1,8 +1,8 @@
 import streamlit as st
 from langchain_openai import AzureChatOpenAI
 import os
-from survey_generator_ai_page import *
-from survey_generator_upload_page import *
+from pages.survey_generator_ai_page import *
+from pages.survey_generator_upload_page import *
 
 # Set page configuration
 st.set_page_config(layout="wide")

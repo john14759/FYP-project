@@ -3,7 +3,7 @@ from PyPDF2 import PdfReader
 import docx
 from io import StringIO
 import json
-from survey_generator_ai_page import index_generation_page
+from pages.survey_generator_ai_page import index_generation_page
 
 def get_file_type(uploaded_file):
     """Determine file type from extension or MIME type"""

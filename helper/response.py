@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage
-from survey_gen import *
+from helper.survey_gen import *
 
 def generate_conversation_title(query):
     title_prompt = f"""

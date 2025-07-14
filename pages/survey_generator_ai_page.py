@@ -1,9 +1,9 @@
 import streamlit as st
-from survey_generation_llm import *
-from survey_creation import *
+from helper.survey_generation_llm import *
+from helper.survey_creation import *
 import time
 import json
-from survey_generation_llm import *
+from helper.survey_generation_llm import *
 
 def generate_page():
 

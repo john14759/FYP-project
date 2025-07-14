@@ -1,5 +1,5 @@
 import streamlit as st
-from upload_page_processing import *
+from helper.upload_page_processing import *
 
 def upload_page():
     if st.button("⬅️ Back to Main Page"):
